@@ -10,7 +10,6 @@ import pprint
 import cv2
 sys.path.insert(0, os.path.join('/opt/dcn', 'rfcn'))
 import _init_paths
-#import rfcn._init_paths
 from config.config import config, update_config
 from utils.image import resize, transform
 import numpy as np
@@ -32,30 +31,6 @@ import time
 from rfcn_dcn_config_JH_logProcess import rfcn_dcn_config as RFCN_DCN_CONFIG
 
 
-min_threshold = min(list(RFCN_DCN_CONFIG['need_label_thresholds'].values()))
-# def readImage_fun(isUrlFlag=False, imagePath=None):
-#     im = None
-#     if isUrlFlag:
-#         try:
-#             data = urllib.urlopen(imagePath.strip()).read()
-#             nparr = np.fromstring(data, np.uint8)
-#             if nparr.shape[0] < 1:
-#                 im = None
-#         except:
-#             print("Read Url Exception : %s" % (imagePath))
-#             im = None
-#         else:
-#             im = cv2.imdecode(nparr, 1)
-#         finally:
-#             return im
-#     else:
-#         im = cv2.imread(imagePath, cv2.IMREAD_COLOR)
-#     if np.shape(im) == ():
-#         print("waringing info : %s can't be read" % (imagePath))
-#         return None
-#     return im
-
-
 def init_detect_model():
     # get symbol
     pprint.pprint(config)
@@ -68,13 +43,12 @@ def init_detect_model():
     return [sym, arg_params, aux_params]
 
 
-
-def show_boxes_write_rg(fileOp=None, image_name=None, im=None, dets=None, classes=None, vis=None, scale=1.0):
+def show_boxes_write_rg(fileOp=None, im=None, dets=None, classes=None, vis=None, scale=1.0, count=0):
     color_black = (0, 0, 0)
     # write to terror det rg tsv file
-    imageName = image_name
+    # imageName = image_name
     writeInfo = []
-    # "alpha%d"% = 0
+    # "alpha%d" % = 0
     for cls_idx, cls_name in enumerate(classes[1:], start=1):
         if cls_idx not in RFCN_DCN_CONFIG['need_label_dict'].keys():
             continue
@@ -110,105 +84,36 @@ def show_boxes_write_rg(fileOp=None, image_name=None, im=None, dets=None, classe
                     im, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color=color_black, thickness=3)
                 cv2.putText(im, '%s %.3f' % (cls_name, score), (
                     bbox[0], bbox[1] + 15), color=color_black, fontFace=cv2.FONT_HERSHEY_COMPLEX, fontScale=0.5)
-    fileOp.write("%s\t%s" % ("alpha%d"%counter, json.dumps(writeInfo)))
+    fileOp.write("%s\t%s" % ("alpha%d" % count, json.dumps(writeInfo)))
     fileOp.write('\n')
     fileOp.flush()
     if vis is not None and im is not None:
-        out_file = os.path.join(vis, "alpha%d"%counter)
-
-        cv2.imshow(im)
+        out_file = os.path.join(vis, "alpha%d.jpg" % count)
 
         cv2.imwrite(out_file, im)
-        counter += 1
-    pass
+        return im
+    
 
+def process_image_fun(imagesPath=None, fileOp=None, vis=None, model_params_list=None, count=0):
+    # init rfcn dcn detect model (mxnet)
+    # model_params_list = init_detect_model()
 
-def show_boxes_write_labelx(fileOp=None, image_name=None, im=None, dets=None, classes=None, vis=False, scale=1.0):
-    color_black = (0, 0, 0)
-    # write to terror det rg tsv file
-    imageName = image_name
-    writeInfo = dict()
-    writeInfo['url'] = image_name
-    writeInfo['type'] = "image"
-    label_list = []
-    label_list_element_dict=dict()
-    bbox_list = []
-    # color = (random.randint(0, 256), random.randint(
-    #     0, 256), random.randint(0, 256))
-    for cls_idx, cls_name in enumerate(classes[1:], start=1):
-        if cls_idx not in RFCN_DCN_CONFIG['need_label_dict'].keys():
-            continue
-        cls_dets = dets[cls_idx-1]
-        for det in cls_dets:
-            bbox = det[:4] * scale
-            score = det[-1]
-            if float(score) < RFCN_DCN_CONFIG['need_label_thresholds'][cls_idx]:
-                continue
-            bbox = map(int, bbox)
-            one_bbox = dict()
-            one_bbox['class'] = cls_name
-            pts_list = []
-            pts_list.append([bbox[0], bbox[1]])
-            pts_list.append([bbox[2], bbox[1]])
-            pts_list.append([bbox[2], bbox[3]])
-            pts_list.append([bbox[0], bbox[3]])
-            one_bbox["bbox"] = pts_list
-            one_bbox['ground_truth'] = True
-            bbox_list.append(one_bbox)
-            if vis is not None and im is not None:
-                cv2.rectangle(
-                    im, (bbox[0], bbox[1]), (bbox[2], bbox[3]), color=color_black, thickness=3)
-                cv2.putText(im, '%s %.3f' % (cls_name, score), (
-                    bbox[0], bbox[1] + 15), color=color_black, fontFace=cv2.FONT_HERSHEY_COMPLEX, fontScale=0.5)
-    if len(bbox_list) > 0:
-        label_list_element_dict['name'] = 'detect'
-        label_list_element_dict['type'] = 'detection'
-        label_list_element_dict['version'] = '1'
-        label_list_element_dict['data'] = bbox_list
-        label_list.append(label_list_element_dict)
-        writeInfo['label'] = label_list
-        fileOp.write("%s" % (json.dumps(writeInfo)))
-        fileOp.write('\n')
-        fileOp.flush()
-    if vis is not None and im is not None:
-        out_file = os.path.join(vis,
-                                imageName.split('/')[-1])
-        out_file = out_file[:out_file.rfind('.')]+'.jpg'
-
-        cv2.imshow(im)
-
-        cv2.imwrite(out_file, im)
-    pass
-
-
-def show_boxes(im_name=None, dets=None, classes=None, scale=1, vis=None, fileOp=None, flag=1):
-    im = None
-    if vis is not None:
-        # im = readImage_fun(isUrlFlag=isUrlFlag, imagePath=im_name)
-        im = im_name
-    if flag == 1:
-        show_boxes_write_rg(fileOp=fileOp, image_name=im_name,
-                            im=im, dets=dets, classes=classes, vis=vis)
-    elif flag == 2:
-        show_boxes_write_labelx(fileOp=fileOp, image_name=im_name,
-                                im=im, dets=dets, classes=classes, vis=vis)
-    pass
-
-
-
-def process_one_batch_images_fun(image=None, init_model_param=None, fileOp=None, vis=None):
-    num_classes = RFCN_DCN_CONFIG['num_classes']  # 0 is background,
+    # num_classes = RFCN_DCN_CONFIG['num_classes']  # 0 is background,
     classes = RFCN_DCN_CONFIG['num_classes_name_list']
-    im_name = image
+    min_threshold = min(
+        list(RFCN_DCN_CONFIG['need_label_thresholds'].values()))
+    
+    im_name = imagesPath
     all_can_read_image = []
     data = []
-    # all_can_read_image.append(im_name)
+    all_can_read_image.append(im_name)
     target_size = config.SCALES[0][0]
     max_size = config.SCALES[0][1]
     im, im_scale = resize(im_name, target_size, max_size,
                           stride=config.network.IMAGE_STRIDE)
     im_tensor = transform(im, config.network.PIXEL_MEANS)
-    im_info = np.array([[im_tensor.shape[2], im_tensor.shape[3], im_scale]], dtype=np.float32)
+    im_info = np.array(
+        [[im_tensor.shape[2], im_tensor.shape[3], im_scale]], dtype=np.float32)
     data.append({'data': im_tensor, 'im_info': im_info})
 
     # get predictor
@@ -222,10 +127,10 @@ def process_one_batch_images_fun(image=None, init_model_param=None, fileOp=None,
                     for i in xrange(len(data))]
     provide_label = [None for i in xrange(len(data))]
 
-    predictor = Predictor(init_model_param[0], data_names, label_names,
+    predictor = Predictor(model_params_list[0], data_names, label_names,
                           context=[mx.gpu(0)], max_data_shapes=max_data_shape,
                           provide_data=provide_data, provide_label=provide_label,
-                          arg_params=init_model_param[1], aux_params=init_model_param[2])
+                          arg_params=model_params_list[1], aux_params=model_params_list[2])
     nms = gpu_nms_wrapper(config.TEST.NMS, 0)
 
     for idx, im_name in enumerate(all_can_read_image):
@@ -250,17 +155,7 @@ def process_one_batch_images_fun(image=None, init_model_param=None, fileOp=None,
             cls_dets = cls_dets[cls_dets[:, -1] > min_threshold, :]
             dets_nms.append(cls_dets)
         print('testing {} {:.4f}s'.format(im_name, toc()))
-        show_boxes(im_name=im_name, dets=dets_nms,
-                   classes=classes, scale=1, vis=vis, fileOp=fileOp, flag=1)
-    print('process one batch images done')
-    pass
-
-
-
-def process_image_fun(imagesPath=None, fileOp=None, vis=None):
-    # init rfcn dcn detect model (mxnet)
-    model_params_list = init_detect_model()
-    process_one_batch_images_fun(image=imagesPath, init_model_param=model_params_list, fileOp=fileOp, vis=vis)
-
-    pass
-
+        show_boxes_write_rg(im=im_name, dets=dets_nms,
+                   classes=classes, scale=1, vis=vis, fileOp=fileOp)
+    return im
+        
