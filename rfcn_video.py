@@ -128,7 +128,7 @@ def process_image_fun(imagesPath=None, fileOp=None, vis=None, model_params_list=
     provide_label = [None for i in xrange(len(data))]
 
     predictor = Predictor(model_params_list[0], data_names, label_names,
-                          context=[mx.gpu(0)], max_data_shapes=max_data_shape,
+                          context=[mx.gpu(1)], max_data_shapes=max_data_shape,
                           provide_data=provide_data, provide_label=provide_label,
                           arg_params=model_params_list[1], aux_params=model_params_list[2])
     nms = gpu_nms_wrapper(config.TEST.NMS, 0)
@@ -154,8 +154,8 @@ def process_image_fun(imagesPath=None, fileOp=None, vis=None, model_params_list=
             cls_dets = cls_dets[keep, :]
             cls_dets = cls_dets[cls_dets[:, -1] > min_threshold, :]
             dets_nms.append(cls_dets)
-        print('testing {} {:.4f}s'.format(im_name, toc()))
-        show_boxes_write_rg(im=im_name, dets=dets_nms,
-                   classes=classes, scale=1, vis=vis, fileOp=fileOp)
+        #print('testing {} {:.4f}s'.format(im_name, toc()))
+        im=show_boxes_write_rg(im=im_name, dets=dets_nms,
+                   classes=classes, scale=1, vis=vis, fileOp=fileOp, count=count)
     return im
         

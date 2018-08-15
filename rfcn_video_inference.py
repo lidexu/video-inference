@@ -4,41 +4,66 @@ import cv2
 import time, random
 from rfcn_video import process_image_fun
 from rfcn_video import init_detect_model
+import os
+import argparse
+
+def parse_args():
+    parser = argparse.ArgumentParser(description='video inference')
+    parser.add_argument('--videoFile', dest='videoFile', 
+                        default=None, required=True, help='', type=str)
+    parser.add_argument('--interval', dest='interval',
+                        default=1, required=False, help='', type=int)
+    
+    args = parser.parse_args()
+    return args
+
+args = parse_args()
+
 
 def main():
     print("RUN PROGRAM")
-    videoFile = '/workspace/mnt/group/terror/lidexu/Git/video-inference/test/testSample_terror.mp4'
-    savePath = '/workspace/mnt/group/terror/lidexu/Git/video-inference/test/reslut.json'
+    videoFile = args.videoFile
+    frame_inter = args.interval
+    savePath = '/workspace/inference/result/reslut.json'
     savefileop = open(savePath, 'a+')
-    visualizePath = '/workspace/mnt/group/terror/lidexu/Git/video-inference/test/vis-result'
+    visualizePath = '/workspace/inference/result/vis_result'
     cap = cv2.VideoCapture(videoFile)
     fps = cap.get(cv2.CAP_PROP_FPS)
-    # size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-    #         int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
-    fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+    size = (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)))
+    #fourcc = int(cap.get(cv2.CAP_PROP_FOURCC))
+    fourcc = cv2.VideoWriter.fourcc('M', 'J', 'P', 'G')
     print(fourcc)
+    write_fps = fps
     videoWriter = cv2.VideoWriter(
-        '/workspace/mnt/group/terror/lidexu/Git/video-inference/test/bkResult.avi',  fourcc, fps, (600, 1000))
+        '/workspace/inference/result/bkResult.avi',  fourcc, write_fps, size)
 
     print('cap is open', cap.isOpened())
     count = 0
+    frame_infer = 0
     model_params_list = init_detect_model()
     while True:
+        print(frame_infer)
         ret, image = cap.read()
         if(ret == False):
             break
-        im = process_image_fun(
-            imagesPath=image, fileOp=savefileop, vis=visualizePath, model_params_list=model_params_list, count=count)
+        if(count == frame_infer):
+
+            im = process_image_fun(
+                imagesPath=image, fileOp=savefileop, vis=visualizePath, model_params_list=model_params_list, count=count)
         #print(im)
 
-        cv2.waitKey(10)
+            #cv2.waitKey(2)
 
-        videoWriter.write(im)
+            videoWriter.write(im)
+            frame_infer = frame_infer + frame_inter
 
         # cv2.imshow('cap video', frame)
-        count += 1
+        count =  count + 1
+        if(count % 50 == 0):
+            print("Now process the %d image:"%count)
 
-        if cv2.waitKey(5) & 0xFF == ord('q'):
+        if cv2.waitKey(2) & 0xFF == ord('q'):
             cv2.destroyAllWindows()
             break
     cv2.destroyAllWindows()     # close all the widows opened inside the program
