@@ -43,7 +43,6 @@ def main():
     frame_infer = 0
     model_params_list = init_detect_model()
     while True:
-        print(frame_infer)
         ret, image = cap.read()
         if(ret == False):
             break
